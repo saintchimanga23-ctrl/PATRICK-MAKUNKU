@@ -1,0 +1,60 @@
+<div class="container-fluid px-3 px-lg-4">
+  <div class="feed-layout">
+    <aside class="sidebar">
+      <div class="sidebar-block">
+        <h6>Topics</h6>
+        <ul class="sidebar-list">
+          <li><a href="/feed" class="<%= !activeTopic ? 'active' : '' %>">All stories</a></li>
+          <% topics.forEach(function(t){ %>
+            <li><a href="/feed?topic=<%= t %>" class="<%= activeTopic === t ? 'active' : '' %>"><%= t.charAt(0).toUpperCase() + t.slice(1) %></a></li>
+          <% }) %>
+        </ul>
+      </div>
+
+      <div class="sidebar-block">
+        <h6>Reading the spectrum</h6>
+        <p class="sidebar-note">Each story shows dots for every source covering it, positioned by political lean.</p>
+        <ul class="legend-list">
+          <li><span class="dot-chip" style="background: var(--bias--2)"></span> Left</li>
+          <li><span class="dot-chip" style="background: var(--bias--1)"></span> Lean Left</li>
+          <li><span class="dot-chip" style="background: var(--bias-0)"></span> Center</li>
+          <li><span class="dot-chip" style="background: var(--bias-1)"></span> Lean Right</li>
+          <li><span class="dot-chip" style="background: var(--bias-2)"></span> Right</li>
+        </ul>
+      </div>
+
+      <% if (preferences) { %>
+        <div class="sidebar-block">
+          <h6>Your preferences</h6>
+          <p class="sidebar-note">Personalize which topics show first on your dashboard.</p>
+          <a href="/account/preferences" class="btn btn-outline-cta btn-sm w-100">Edit preferences</a>
+        </div>
+      <% } else { %>
+        <div class="sidebar-block sidebar-cta">
+          <h6>Save what matters</h6>
+          <p class="sidebar-note">Create a free account to bookmark stories and personalize your feed.</p>
+          <a href="/register" class="btn btn-cta btn-sm w-100">Create account</a>
+        </div>
+      <% } %>
+    </aside>
+
+    <section class="feed-main">
+      <div class="feed-header">
+        <h1><%= activeTopic ? activeTopic.charAt(0).toUpperCase() + activeTopic.slice(1) : 'Your Feed' %></h1>
+        <span class="feed-count"><%= clusters.length %> stories</span>
+      </div>
+
+      <% if (!clusters.length) { %>
+        <div class="empty-state">
+          <p>No stories in this topic yet. Run <code>npm run fetch-news</code> to pull the latest coverage, or check back soon.</p>
+        </div>
+      <% } else { %>
+        <div class="story-grid">
+          <% clusters.forEach(function(cluster){ %>
+            <%- include('partials/story_card', { cluster: cluster }) %>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </div>
+</div>

@@ -1,0 +1,107 @@
+<%
+  const biasLabels = { '-2': 'Left', '-1': 'Lean Left', '0': 'Center', '1': 'Lean Right', '2': 'Right' };
+  const heroCluster = mostDiverse[0] || clusters[0] || null;
+%>
+
+<section class="hero">
+  <div class="container-fluid px-3 px-lg-4">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow eyebrow-light">A final-year project in media literacy</span>
+        <h1>One story.<br>Every angle.</h1>
+        <p class="hero-sub">
+          NewsHub automatically groups coverage of the same event from
+          left, center, and right-leaning sources — so instead of one
+          outlet's framing, you see the full spread before you form an opinion.
+        </p>
+        <div class="hero-actions">
+          <a href="/feed" class="btn btn-cta">Browse the feed</a>
+          <a href="/register" class="btn btn-ghost">Create a free account</a>
+        </div>
+        <div class="hero-stats">
+          <div><strong><%= stats.stories %></strong><span>story clusters</span></div>
+          <div><strong><%= stats.articles %></strong><span>articles indexed</span></div>
+          <div><strong><%= stats.sources %></strong><span>sources tracked</span></div>
+        </div>
+      </div>
+
+      <% if (heroCluster) { %>
+      <div class="hero-demo">
+        <div class="hero-demo-card">
+          <span class="eyebrow">Live example · <%= heroCluster.topic %></span>
+          <h2><a href="/story/<%= heroCluster.id %>"><%= heroCluster.canonical_title %></a></h2>
+
+          <div class="hero-spectrum">
+            <div class="hero-spectrum-track">
+              <span class="tick tick-left">Left</span>
+              <span class="tick tick-center">Center</span>
+              <span class="tick tick-right">Right</span>
+              <% heroCluster.articles.forEach(function(a){ %>
+                <span class="spectrum-dot lg" style="left: <%= ((a.bias + 2) / 4) * 100 %>%; background: var(--bias-<%= a.bias %>);" title="<%= a.source_name %>"></span>
+              <% }) %>
+            </div>
+          </div>
+
+          <ul class="hero-perspective-list">
+            <% heroCluster.articles.slice(0,3).forEach(function(a){ %>
+              <li>
+                <span class="dot-chip" style="background: var(--bias-<%= a.bias %>)"></span>
+                <strong><%= a.source_name %></strong>
+                <span class="perspective-lean"><%= biasLabels[String(a.bias)] %></span>
+                <p><%= a.title %></p>
+              </li>
+            <% }) %>
+          </ul>
+
+          <div class="hero-demo-footer">
+            <span class="score-badge lg">Diversity Score <%= heroCluster.score %>/100</span>
+            <a href="/story/<%= heroCluster.id %>" class="see-all-link">See all perspectives →</a>
+          </div>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="container-fluid px-3 px-lg-4">
+    <div class="section-heading">
+      <h2>Most balanced coverage right now</h2>
+      <p>Stories with the widest spread of viewpoints, ranked by Perspective Diversity Score.</p>
+    </div>
+    <div class="story-grid">
+      <% mostDiverse.forEach(function(cluster){ %>
+        <%- include('partials/story_card', { cluster: cluster }) %>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section-block alt">
+  <div class="container-fluid px-3 px-lg-4">
+    <div class="section-heading">
+      <h2>Latest stories</h2>
+      <p>Fresh clusters, grouped as they're published.</p>
+    </div>
+    <div class="story-grid">
+      <% clusters.forEach(function(cluster){ %>
+        <%- include('partials/story_card', { cluster: cluster }) %>
+      <% }) %>
+    </div>
+    <div class="text-center mt-4">
+      <a href="/feed" class="btn btn-outline-cta">View the full feed</a>
+    </div>
+  </div>
+</section>
+
+<section class="topic-strip">
+  <div class="container-fluid px-3 px-lg-4">
+    <span class="topic-strip-label">Jump to a topic</span>
+    <div class="topic-chips">
+      <% topics.forEach(function(t){ %>
+        <a href="/feed?topic=<%= t %>" class="topic-chip"><%= t %></a>
+      <% }) %>
+    </div>
+  </div>
+</section>

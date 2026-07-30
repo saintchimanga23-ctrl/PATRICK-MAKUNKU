@@ -1,0 +1,57 @@
+<div class="container-fluid px-3 px-lg-4">
+  <div class="section-heading">
+    <h1>Welcome back, <%= currentUser.username %></h1>
+    <p>Here's what's new since your last visit.</p>
+  </div>
+
+  <div class="dash-stats">
+    <a href="/account/bookmarks" class="dash-stat-card">
+      <strong><%= bookmarkCount %></strong>
+      <span>Bookmarked articles</span>
+    </a>
+    <a href="/account/history" class="dash-stat-card">
+      <strong><%= recentHistory.length %></strong>
+      <span>Recently read</span>
+    </a>
+    <a href="/account/preferences" class="dash-stat-card">
+      <strong><%= preferredTopics.length %></strong>
+      <span>Followed topics</span>
+    </a>
+  </div>
+
+  <% if (recommended.length) { %>
+    <section class="section-block">
+      <div class="section-heading">
+        <h2>Picked for your topics</h2>
+        <p>Based on: <%= preferredTopics.join(', ') %></p>
+      </div>
+      <div class="story-grid">
+        <% recommended.forEach(function(cluster){ %>
+          <%- include('partials/story_card', { cluster: cluster }) %>
+        <% }) %>
+      </div>
+    </section>
+  <% } else { %>
+    <div class="empty-state">
+      <p>You haven't set topic preferences yet. <a href="/account/preferences">Choose topics</a> to get a personalized feed here.</p>
+    </div>
+  <% } %>
+
+  <% if (recentHistory.length) { %>
+    <section class="section-block alt">
+      <div class="section-heading">
+        <h2>Recently read</h2>
+      </div>
+      <div class="history-list">
+        <% recentHistory.forEach(function(a){ %>
+          <div class="history-row">
+            <span class="dot-chip" style="background: var(--bias-<%= a.bias %>)"></span>
+            <span class="history-title"><%= a.title %></span>
+            <span class="history-source"><%= a.source_name %></span>
+            <span class="history-time"><%= new Date(a.viewed_at).toLocaleString() %></span>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
+</div>

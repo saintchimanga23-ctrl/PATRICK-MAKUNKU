@@ -1,0 +1,32 @@
+<div class="container-fluid px-3 px-lg-4">
+  <div class="auth-shell">
+    <div class="auth-card wide">
+      <h1>Your preferences</h1>
+      <p class="auth-sub">Choose the topics you want highlighted on your dashboard.</p>
+
+      <% if (saved) { %>
+        <div class="alert alert-success" role="alert">Preferences saved.</div>
+      <% } %>
+
+      <form method="POST" action="/account/preferences">
+        <div class="pref-topics">
+          <% topics.forEach(function(t){ %>
+            <label class="pref-chip">
+              <input type="checkbox" name="topics" value="<%= t %>" <%= selectedTopics.includes(t) ? 'checked' : '' %>>
+              <span><%= t.charAt(0).toUpperCase() + t.slice(1) %></span>
+            </label>
+          <% }) %>
+        </div>
+
+        <div class="form-check form-switch my-4">
+          <input class="form-check-input" type="checkbox" role="switch" id="balance_mode" name="balance_mode" value="1" <%= balanceMode ? 'checked' : '' %>>
+          <label class="form-check-label" for="balance_mode">
+            Balance mode — always surface at least one opposing viewpoint per story
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-cta w-100">Save preferences</button>
+      </form>
+    </div>
+  </div>
+</div>

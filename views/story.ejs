@@ -1,0 +1,68 @@
+<%
+  const laneMeta = {
+    left: { label: 'Left-leaning coverage', cls: 'lane-left' },
+    center: { label: 'Center coverage', cls: 'lane-center' },
+    right: { label: 'Right-leaning coverage', cls: 'lane-right' }
+  };
+%>
+<div class="container-fluid px-3 px-lg-4">
+  <div class="story-header">
+    <span class="eyebrow"><%= cluster.topic %></span>
+    <h1><%= cluster.canonical_title %></h1>
+    <div class="story-header-meta">
+      <span class="score-badge lg">Diversity Score <%= score %>/100</span>
+      <span class="story-meta-note">
+        Score reflects how many distinct viewpoints are represented and their combined source credibility.
+      </span>
+    </div>
+  </div>
+
+  <div class="perspective-lanes">
+    <% ['left','center','right'].forEach(function(key){ %>
+      <div class="lane <%= laneMeta[key].cls %>">
+        <h2 class="lane-title"><%= laneMeta[key].label %> <span class="lane-count">(<%= grouped[key].length %>)</span></h2>
+
+        <% if (!grouped[key].length) { %>
+          <p class="lane-empty">No coverage from this perspective yet.</p>
+        <% } else { %>
+          <% grouped[key].forEach(function(article){ %>
+            <div class="perspective-card">
+              <div class="perspective-card-top">
+                <strong class="source-name"><%= article.source_name %></strong>
+                <span class="credibility-chip" title="Source credibility index">C <%= article.credibility %></span>
+              </div>
+              <h3 class="perspective-title">
+                <a href="<%= article.url %>" target="_blank" rel="noopener noreferrer"><%= article.title %></a>
+              </h3>
+              <p class="perspective-desc"><%= article.description %></p>
+              <div class="perspective-card-footer">
+                <a href="<%= article.url %>" target="_blank" rel="noopener noreferrer" class="read-link">Read full article ↗</a>
+                <% if (typeof bookmarkedIds !== 'undefined') { %>
+                  <button
+                    class="bookmark-btn <%= bookmarkedIds.has(article.id) ? 'active' : '' %>"
+                    data-article-id="<%= article.id %>"
+                    aria-label="Bookmark this article">
+                    <%= bookmarkedIds.has(article.id) ? '★ Saved' : '☆ Save' %>
+                  </button>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+
+  <% if (related && related.length) { %>
+    <section class="section-block">
+      <div class="section-heading">
+        <h2>Related stories</h2>
+      </div>
+      <div class="story-grid">
+        <% related.forEach(function(c){ %>
+          <%- include('partials/story_card', { cluster: c }) %>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
+</div>

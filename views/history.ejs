@@ -1,0 +1,21 @@
+<div class="container-fluid px-3 px-lg-4">
+  <div class="section-heading">
+    <h1>Reading history</h1>
+    <p><%= history.length %> article<%= history.length === 1 ? '' : 's' %> viewed</p>
+  </div>
+
+  <% if (!history.length) { %>
+    <div class="empty-state"><p>Nothing here yet. Stories you open will show up in this list.</p></div>
+  <% } else { %>
+    <div class="history-list">
+      <% history.forEach(function(a){ %>
+        <div class="history-row">
+          <span class="dot-chip" style="background: var(--bias-<%= a.bias %>)"></span>
+          <span class="history-title"><a href="<%= a.url %>" target="_blank" rel="noopener noreferrer"><%= a.title %></a></span>
+          <span class="history-source"><%= a.source_name %></span>
+          <span class="history-time"><%= new Date(a.viewed_at).toLocaleString() %></span>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>

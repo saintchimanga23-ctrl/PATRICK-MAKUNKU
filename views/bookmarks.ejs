@@ -1,0 +1,24 @@
+<div class="container-fluid px-3 px-lg-4">
+  <div class="section-heading">
+    <h1>My bookmarks</h1>
+    <p><%= bookmarks.length %> saved article<%= bookmarks.length === 1 ? '' : 's' %></p>
+  </div>
+
+  <% if (!bookmarks.length) { %>
+    <div class="empty-state"><p>You haven't saved anything yet. Bookmark articles from any story page to find them here.</p></div>
+  <% } else { %>
+    <div class="search-results">
+      <% bookmarks.forEach(function(a){ %>
+        <div class="search-result-row">
+          <span class="dot-chip" style="background: var(--bias-<%= a.bias %>)"></span>
+          <div class="flex-grow-1">
+            <h3><a href="<%= a.url %>" target="_blank" rel="noopener noreferrer"><%= a.title %></a></h3>
+            <p class="search-result-desc"><%= a.description %></p>
+            <span class="search-result-meta"><%= a.source_name %> · saved <%= new Date(a.bookmarked_at).toLocaleDateString() %></span>
+          </div>
+          <button class="bookmark-btn active" data-article-id="<%= a.article_id %>" aria-label="Remove bookmark">★ Remove</button>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>

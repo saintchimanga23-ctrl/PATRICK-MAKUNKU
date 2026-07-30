@@ -1,0 +1,23 @@
+<div class="container-fluid px-3 px-lg-4">
+  <div class="section-heading">
+    <h1>Search results</h1>
+    <p><%= q ? `Showing results for "${q}"` : 'Enter a search term above.' %></p>
+  </div>
+
+  <% if (q && !results.length) { %>
+    <div class="empty-state"><p>No articles matched your search. Try a different term.</p></div>
+  <% } %>
+
+  <div class="search-results">
+    <% results.forEach(function(a){ %>
+      <div class="search-result-row">
+        <span class="dot-chip" style="background: var(--bias-<%= a.bias %>)"></span>
+        <div>
+          <h3><a href="<%= a.url %>" target="_blank" rel="noopener noreferrer"><%= a.title %></a></h3>
+          <p class="search-result-desc"><%= a.description %></p>
+          <span class="search-result-meta"><%= a.source_name %> · <%= new Date(a.published_at).toLocaleDateString() %></span>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</div>

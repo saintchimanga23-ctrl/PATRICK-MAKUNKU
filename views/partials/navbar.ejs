@@ -1,0 +1,52 @@
+<nav class="navbar navbar-expand-lg site-navbar sticky-top">
+  <div class="container-fluid px-3 px-lg-4">
+    <a class="navbar-brand brand" href="/">
+      <span class="brand-mark">N</span>
+      <span class="brand-word">News<strong>Hub</strong></span>
+    </a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0 main-links">
+        <li class="nav-item"><a class="nav-link <%= currentPath === '/feed' ? 'active' : '' %>" href="/feed">Feed</a></li>
+        <li class="nav-item"><a class="nav-link" href="/feed?topic=politics">Politics</a></li>
+        <li class="nav-item"><a class="nav-link" href="/feed?topic=business">Business</a></li>
+        <li class="nav-item"><a class="nav-link" href="/feed?topic=technology">Technology</a></li>
+        <li class="nav-item"><a class="nav-link" href="/feed?topic=world">World</a></li>
+      </ul>
+
+      <form class="d-flex search-form me-lg-3" action="/search" method="GET" role="search">
+        <input class="form-control" type="search" name="q" placeholder="Search stories…" aria-label="Search">
+      </form>
+
+      <ul class="navbar-nav align-items-lg-center">
+        <% if (currentUser) { %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle user-pill" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <span class="avatar-dot" aria-hidden="true"><%= currentUser.username.charAt(0).toUpperCase() %></span>
+              <%= currentUser.username %>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+              <li><a class="dropdown-item" href="/account/dashboard">Dashboard</a></li>
+              <li><a class="dropdown-item" href="/account/bookmarks">Bookmarks</a></li>
+              <li><a class="dropdown-item" href="/account/history">Reading history</a></li>
+              <li><a class="dropdown-item" href="/account/preferences">Preferences</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <form action="/logout" method="POST" class="px-3">
+                  <button type="submit" class="btn btn-sm btn-link p-0 text-decoration-none">Log out</button>
+                </form>
+              </li>
+            </ul>
+          </li>
+        <% } else { %>
+          <li class="nav-item"><a class="nav-link" href="/login">Log in</a></li>
+          <li class="nav-item"><a class="btn btn-cta btn-sm ms-lg-2" href="/register">Create account</a></li>
+        <% } %>
+      </ul>
+    </div>
+  </div>
+</nav>

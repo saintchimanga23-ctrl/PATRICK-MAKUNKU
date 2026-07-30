@@ -1,0 +1,22 @@
+<%
+  const biasLabels = { '-2': 'Left', '-1': 'Lean Left', '0': 'Center', '1': 'Lean Right', '2': 'Right' };
+%>
+<article class="story-card">
+  <a href="/story/<%= cluster.id %>" class="story-card-media" style="background-image: url('<%= cluster.leadImage || '/images/placeholder.svg' %>')" aria-label="<%= cluster.canonical_title %>"></a>
+  <div class="story-card-body">
+    <span class="eyebrow"><%= cluster.topic %></span>
+    <h3 class="story-card-title"><a href="/story/<%= cluster.id %>"><%= cluster.canonical_title %></a></h3>
+
+    <div class="spectrum" role="img" aria-label="Coverage spans <%= cluster.sourceCount %> sources with a diversity score of <%= cluster.score %> out of 100">
+      <div class="spectrum-track">
+        <% cluster.articles.forEach(function(a) { %>
+          <span class="spectrum-dot" style="left: <%= ((a.bias + 2) / 4) * 100 %>%; background: var(--bias-<%= a.bias %>);" title="<%= a.source_name %> · <%= biasLabels[String(a.bias)] %>"></span>
+        <% }); %>
+      </div>
+      <div class="spectrum-meta">
+        <span class="score-badge" title="Perspective Diversity Score">DIV <%= cluster.score %></span>
+        <span class="source-count"><%= cluster.sourceCount %> source<%= cluster.sourceCount === 1 ? '' : 's' %></span>
+      </div>
+    </div>
+  </div>
+</article>

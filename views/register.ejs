@@ -1,0 +1,33 @@
+<div class="container-fluid px-3 px-lg-4">
+  <div class="auth-shell">
+    <div class="auth-card">
+      <h1>Create your account</h1>
+      <p class="auth-sub">Bookmark stories, track reading history, and tune your topic mix.</p>
+
+      <% if (errors && errors.length) { %>
+        <div class="alert alert-danger" role="alert">
+          <% errors.forEach(function(e){ %><div><%= e.msg %></div><% }) %>
+        </div>
+      <% } %>
+
+      <form method="POST" action="/register" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="username">Username</label>
+          <input class="form-control" type="text" id="username" name="username" value="<%= old.username || '' %>" minlength="3" maxlength="30" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="email">Email</label>
+          <input class="form-control" type="email" id="email" name="email" value="<%= old.email || '' %>" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="password">Password</label>
+          <input class="form-control" type="password" id="password" name="password" minlength="6" required>
+          <div class="form-text">At least 6 characters.</div>
+        </div>
+        <button type="submit" class="btn btn-cta w-100">Create account</button>
+      </form>
+
+      <p class="auth-switch">Already have an account? <a href="/login">Log in</a></p>
+    </div>
+  </div>
+</div>
