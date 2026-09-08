@@ -1,13 +1,19 @@
 const db = require("../config/db");
 const sources = require("./sources");
 
-function seedSources() {
+async function seedSources() {
   const insert = db.prepare(`
     INSERT OR IGNORE INTO sources (name, rss_url, bias, credibility, topic_focus)
     VALUES (@name, @rss, @bias, @credibility, @topic_focus)
   `);
-  const insertMany = db.transaction((rows) => rows.forEach((r) => insert.run(r)));
-  insertMany(sources);
+  if (db.transaction) {
+    const tx = db.transaction((rows) => rows.map((r) => insert.run(r)));
+    await tx(sources);
+  } else {
+    for (const row of sources) {
+      await insert.run(row);
+    }
+  }
   console.log(`Seeded ${sources.length} sources.`);
 }
 
@@ -81,7 +87,7 @@ const demoClusters = [
   }
 ];
 
-function seedDemoArticles() {
+async function seedDemoArticles() {
   const getSourceId = db.prepare(`SELECT id FROM sources WHERE name = ?`);
   const insertCluster = db.prepare(`
     INSERT INTO story_clusters (canonical_title, topic, keywords) VALUES (?, ?, ?)
@@ -91,30 +97,61 @@ function seedDemoArticles() {
     VALUES (@source_id, @cluster_id, @title, @url, @description, @image_url, @topic, @published_at)
   `);
 
-  const existing = db.prepare(`SELECT COUNT(*) AS c FROM articles`).get();
+  const existing = await db.prepare(`SELECT COUNT(*) AS c FROM articles`).get();
   if (existing.c > 0) {
     console.log("Articles already present, skipping demo seed.");
     return;
   }
 
   const now = Date.now();
-  const tx = db.transaction(() => {
-    demoClusters.forEach((cluster, ci) => {
-      const clusterInfo = insertCluster.run(
+  if (db.transaction) {
+    const tx = db.transaction(async () => {
+      for (const [ci, cluster] of demoClusters.entries()) {
+        const clusterInfo = await insertCluster.run(
+          cluster.canonical_title,
+          cluster.topic,
+          JSON.stringify(cluster.keywords)
+        );
+        const clusterId = clusterInfo.lastInsertRowid;
+
+        for (const [ai, art] of cluster.articles.entries()) {
+          const src = await getSourceId.get(art.source);
+          if (!src) {
+            console.warn(`Source not found for demo article: ${art.source}`);
+            continue;
+          }
+          const publishedAt = new Date(now - (ci * 3 + ai) * 3600 * 1000).toISOString();
+          await insertArticle.run({
+            source_id: src.id,
+            cluster_id: clusterId,
+            title: art.title,
+            url: `https://example-demo-news.local/${cluster.topic}/${ci}-${ai}`,
+            description: art.desc,
+            image_url: art.image,
+            topic: cluster.topic,
+            published_at: publishedAt
+          });
+        }
+      }
+    });
+    await tx();
+  } else {
+    for (const [ci, cluster] of demoClusters.entries()) {
+      const clusterInfo = await insertCluster.run(
         cluster.canonical_title,
         cluster.topic,
         JSON.stringify(cluster.keywords)
       );
       const clusterId = clusterInfo.lastInsertRowid;
 
-      cluster.articles.forEach((art, ai) => {
-        const src = getSourceId.get(art.source);
+      for (const [ai, art] of cluster.articles.entries()) {
+        const src = await getSourceId.get(art.source);
         if (!src) {
           console.warn(`Source not found for demo article: ${art.source}`);
-          return;
+          continue;
         }
         const publishedAt = new Date(now - (ci * 3 + ai) * 3600 * 1000).toISOString();
-        insertArticle.run({
+        await insertArticle.run({
           source_id: src.id,
           cluster_id: clusterId,
           title: art.title,
@@ -124,13 +161,14 @@ function seedDemoArticles() {
           topic: cluster.topic,
           published_at: publishedAt
         });
-      });
-    });
-  });
-  tx();
+      }
+    }
+  }
   console.log(`Seeded ${demoClusters.length} demo story clusters with cross-perspective articles.`);
 }
 
-seedSources();
-seedDemoArticles();
-console.log("Seeding complete.");
+(async () => {
+  await seedSources();
+  await seedDemoArticles();
+  console.log("Seeding complete.");
+})();

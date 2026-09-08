@@ -15,7 +15,7 @@ function guessTopic(title, defaultTopic) {
 }
 
 async function fetchAllSources() {
-  const sources = db.prepare("SELECT * FROM sources").all();
+  const sources = await db.prepare("SELECT * FROM sources").all();
   const insertArticle = db.prepare(`
     INSERT OR IGNORE INTO articles
       (source_id, cluster_id, title, url, description, image_url, topic, published_at)
@@ -31,8 +31,7 @@ async function fetchAllSources() {
   for (const source of sources) {
     try {
       const feed = await parser.parseURL(source.rss_url);
-      // Load current clusters fresh (with parsed keyword arrays) for matching
-      const clusterRows = db.prepare("SELECT id, keywords FROM story_clusters").all();
+      const clusterRows = await db.prepare("SELECT id, keywords FROM story_clusters").all();
       const clusters = clusterRows.map((c) => ({
         id: c.id,
         keywords: JSON.parse(c.keywords || "[]")
@@ -41,7 +40,7 @@ async function fetchAllSources() {
       for (const item of feed.items || []) {
         if (!item.title || !item.link) continue;
 
-        const exists = db.prepare("SELECT id FROM articles WHERE url = ?").get(item.link);
+        const exists = await db.prepare("SELECT id FROM articles WHERE url = ?").get(item.link);
         if (exists) continue;
 
         const topic = guessTopic(item.title, source.topic_focus);
@@ -49,18 +48,17 @@ async function fetchAllSources() {
 
         let clusterId = findMatchingCluster(item.title, clusters);
         if (!clusterId) {
-          const info = insertCluster.run(item.title, topic, JSON.stringify(tokens));
+          const info = await insertCluster.run(item.title, topic, JSON.stringify(tokens));
           clusterId = info.lastInsertRowid;
           clusters.push({ id: clusterId, keywords: tokens });
         } else {
-          // merge keyword sets slightly so the cluster stays discoverable
           const cluster = clusters.find((c) => c.id === clusterId);
           const merged = Array.from(new Set([...(cluster.keywords || []), ...tokens])).slice(0, 25);
           cluster.keywords = merged;
-          updateClusterKeywords.run(JSON.stringify(merged), clusterId);
+          await updateClusterKeywords.run(JSON.stringify(merged), clusterId);
         }
 
-        insertArticle.run({
+        await insertArticle.run({
           source_id: source.id,
           cluster_id: clusterId,
           title: item.title,

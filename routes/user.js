@@ -8,14 +8,15 @@ const TOPICS = ["politics", "business", "technology", "health", "world", "genera
 
 router.use(requireAuth);
 
-router.get("/dashboard", (req, res) => {
+router.get("/dashboard", async (req, res) => {
   const userId = req.session.user.id;
 
-  const bookmarkCount = db
+  const bookmarkCountRow = await db
     .prepare("SELECT COUNT(*) AS c FROM bookmarks WHERE user_id = ?")
-    .get(userId).c;
+    .get(userId);
+  const bookmarkCount = bookmarkCountRow.c;
 
-  const recentHistory = db
+  const recentHistory = await db
     .prepare(
       `SELECT DISTINCT a.*, s.name AS source_name, s.bias, rh.viewed_at
        FROM reading_history rh
@@ -26,13 +27,13 @@ router.get("/dashboard", (req, res) => {
     )
     .all(userId);
 
-  const preferences = db.prepare("SELECT * FROM user_preferences WHERE user_id = ?").get(userId);
+  const preferences = await db.prepare("SELECT * FROM user_preferences WHERE user_id = ?").get(userId);
   const preferredTopics = JSON.parse((preferences && preferences.topics) || "[]");
 
   let recommended = [];
   if (preferredTopics.length) {
     const placeholders = preferredTopics.map(() => "?").join(",");
-    const clusters = db
+    const clusters = await db
       .prepare(
         `SELECT sc.id, sc.canonical_title, sc.topic, MAX(a.published_at) AS latest
          FROM story_clusters sc JOIN articles a ON a.cluster_id = sc.id
@@ -45,10 +46,11 @@ router.get("/dashboard", (req, res) => {
       `SELECT a.*, s.name AS source_name, s.bias, s.credibility
        FROM articles a JOIN sources s ON s.id = a.source_id WHERE a.cluster_id = ?`
     );
-    recommended = clusters.map((c) => {
-      const articles = articleStmt.all(c.id);
-      return { ...c, articles, score: diversityScore(articles) };
-    });
+    recommended = [];
+    for (const c of clusters) {
+      const articles = await articleStmt.all(c.id);
+      recommended.push({ ...c, articles, score: diversityScore(articles) });
+    }
   }
 
   res.render("account_dashboard", {
@@ -60,8 +62,8 @@ router.get("/dashboard", (req, res) => {
   });
 });
 
-router.get("/bookmarks", (req, res) => {
-  const bookmarks = db
+router.get("/bookmarks", async (req, res) => {
+  const bookmarks = await db
     .prepare(
       `SELECT a.*, s.name AS source_name, s.bias, b.created_at AS bookmarked_at, b.article_id
        FROM bookmarks b
@@ -75,18 +77,18 @@ router.get("/bookmarks", (req, res) => {
   res.render("bookmarks", { title: "My Bookmarks", bookmarks });
 });
 
-router.post("/bookmarks/:articleId/toggle", (req, res) => {
+router.post("/bookmarks/:articleId/toggle", async (req, res) => {
   const userId = req.session.user.id;
   const articleId = Number(req.params.articleId);
 
-  const existing = db
+  const existing = await db
     .prepare("SELECT id FROM bookmarks WHERE user_id = ? AND article_id = ?")
     .get(userId, articleId);
 
   if (existing) {
-    db.prepare("DELETE FROM bookmarks WHERE id = ?").run(existing.id);
+    await db.prepare("DELETE FROM bookmarks WHERE id = ?").run(existing.id);
   } else {
-    db.prepare("INSERT INTO bookmarks (user_id, article_id) VALUES (?, ?)").run(userId, articleId);
+    await db.prepare("INSERT INTO bookmarks (user_id, article_id) VALUES (?, ?)").run(userId, articleId);
   }
 
   const bookmarked = !existing;
@@ -96,8 +98,8 @@ router.post("/bookmarks/:articleId/toggle", (req, res) => {
   res.redirect("back");
 });
 
-router.get("/preferences", (req, res) => {
-  const preferences = db
+router.get("/preferences", async (req, res) => {
+  const preferences = await db
     .prepare("SELECT * FROM user_preferences WHERE user_id = ?")
     .get(req.session.user.id);
   const selectedTopics = JSON.parse((preferences && preferences.topics) || "[]");
@@ -111,21 +113,21 @@ router.get("/preferences", (req, res) => {
   });
 });
 
-router.post("/preferences", (req, res) => {
+router.post("/preferences", async (req, res) => {
   const userId = req.session.user.id;
   let selected = req.body.topics || [];
   if (!Array.isArray(selected)) selected = [selected];
   const balanceMode = req.body.balance_mode ? 1 : 0;
 
-  const existing = db.prepare("SELECT user_id FROM user_preferences WHERE user_id = ?").get(userId);
+  const existing = await db.prepare("SELECT user_id FROM user_preferences WHERE user_id = ?").get(userId);
   if (existing) {
-    db.prepare("UPDATE user_preferences SET topics = ?, balance_mode = ? WHERE user_id = ?").run(
+    await db.prepare("UPDATE user_preferences SET topics = ?, balance_mode = ? WHERE user_id = ?").run(
       JSON.stringify(selected),
       balanceMode,
       userId
     );
   } else {
-    db.prepare(
+    await db.prepare(
       "INSERT INTO user_preferences (user_id, topics, balance_mode) VALUES (?, ?, ?)"
     ).run(userId, JSON.stringify(selected), balanceMode);
   }
@@ -133,8 +135,8 @@ router.post("/preferences", (req, res) => {
   res.redirect("/account/preferences?saved=1");
 });
 
-router.get("/history", (req, res) => {
-  const history = db
+router.get("/history", async (req, res) => {
+  const history = await db
     .prepare(
       `SELECT a.*, s.name AS source_name, s.bias, rh.viewed_at
        FROM reading_history rh

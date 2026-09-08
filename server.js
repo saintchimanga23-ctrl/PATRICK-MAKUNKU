@@ -1,11 +1,12 @@
 require("dotenv").config();
-const os = require("os");
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
+const pgSession = require("connect-pg-simple")(session);
 const expressLayouts = require("express-ejs-layouts");
 const cron = require("node-cron");
 
+const db = require("./config/db");
 const { attachUser } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const newsRoutes = require("./routes/news");
@@ -31,8 +32,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const sessionDbPath = process.env.SESSION_DB_PATH || path.join(isVercel ? os.tmpdir() : __dirname, "sessions.sqlite3");
 const sessionOptions = {
+  store: new pgSession({
+    pool: db.pool,
+    tableName: "session",
+    createTableIfMissing: true
+  }),
   secret: process.env.SESSION_SECRET || "dev_secret_change_me",
   resave: false,
   saveUninitialized: false,
@@ -43,23 +48,6 @@ const sessionOptions = {
     sameSite: "lax"
   }
 };
-
-if (!isVercel) {
-  try {
-    const sqlite = require("better-sqlite3");
-    const SqliteSessionStore = require("better-sqlite3-session-store")(session);
-    const sessionDb = new sqlite(sessionDbPath);
-    sessionOptions.store = new SqliteSessionStore({
-      client: sessionDb,
-      expired: {
-        clear: true,
-        intervalMs: 900000
-      }
-    });
-  } catch (error) {
-    console.warn("[server] SQLite session store unavailable; continuing in non-Vercel mode only.", error.message);
-  }
-}
 
 app.use(session(sessionOptions));
 
