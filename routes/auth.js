@@ -18,7 +18,7 @@ router.post(
     body("email").trim().isEmail().withMessage("Please provide a valid email address"),
     body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters")
   ],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     const { username, email, password } = req.body;
 
@@ -30,9 +30,7 @@ router.post(
       });
     }
 
-    const existing = db
-      .prepare("SELECT id FROM users WHERE username = ? OR email = ?")
-      .get(username, email);
+    const existing = await db.prepare("SELECT id FROM users WHERE username = ? OR email = ?").get(username, email);
     if (existing) {
       return res.status(400).render("register", {
         title: "Create an account",
@@ -42,11 +40,11 @@ router.post(
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const info = db
+    const info = await db
       .prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)")
       .run(username, email, hash);
 
-    db.prepare("INSERT INTO user_preferences (user_id, topics, balance_mode) VALUES (?, '[]', 1)").run(
+    await db.prepare("INSERT INTO user_preferences (user_id, topics, balance_mode) VALUES (?, '[]', 1)").run(
       info.lastInsertRowid
     );
 
@@ -59,9 +57,9 @@ router.get("/login", redirectIfAuthed, (req, res) => {
   res.render("login", { title: "Log in", errors: [], old: {} });
 });
 
-router.post("/login", redirectIfAuthed, (req, res) => {
+router.post("/login", redirectIfAuthed, async (req, res) => {
   const { username, password } = req.body;
-  const user = db.prepare("SELECT * FROM users WHERE username = ? OR email = ?").get(username, username);
+  const user = await db.prepare("SELECT * FROM users WHERE username = ? OR email = ?").get(username, username);
 
   if (!user || !bcrypt.compareSync(password || "", user.password_hash)) {
     return res.status(400).render("login", {
