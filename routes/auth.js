@@ -18,7 +18,7 @@ router.post(
     body("email").trim().isEmail().withMessage("Please provide a valid email address"),
     body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters")
   ],
-  async (req, res) => {
+  async (req, res, next) => {
     const errors = validationResult(req);
     const { username, email, password } = req.body;
 
@@ -49,7 +49,10 @@ router.post(
     );
 
     req.session.user = { id: info.lastInsertRowid, username, email };
-    res.redirect("/account/dashboard");
+    req.session.save((error) => {
+      if (error) return next(error);
+      res.redirect("/account/dashboard");
+    });
   }
 );
 
@@ -57,8 +60,9 @@ router.get("/login", redirectIfAuthed, (req, res) => {
   res.render("login", { title: "Log in", errors: [], old: {} });
 });
 
-router.post("/login", redirectIfAuthed, async (req, res) => {
-  const { username, password } = req.body;
+router.post("/login", redirectIfAuthed, async (req, res, next) => {
+  const username = String(req.body.username || "").trim();
+  const password = String(req.body.password || "");
   const user = await db.prepare("SELECT * FROM users WHERE username = ? OR email = ?").get(username, username);
 
   if (!user || !bcrypt.compareSync(password || "", user.password_hash)) {
@@ -72,7 +76,10 @@ router.post("/login", redirectIfAuthed, async (req, res) => {
   req.session.user = { id: user.id, username: user.username, email: user.email };
   const dest = req.session.returnTo || "/account/dashboard";
   delete req.session.returnTo;
-  res.redirect(dest);
+  req.session.save((error) => {
+    if (error) return next(error);
+    res.redirect(dest);
+  });
 });
 
 router.post("/logout", (req, res) => {
