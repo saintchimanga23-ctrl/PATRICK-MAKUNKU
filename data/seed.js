@@ -3,8 +3,13 @@ const sources = require("./sources");
 
 async function seedSources() {
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO sources (name, rss_url, bias, credibility, topic_focus)
+    INSERT INTO sources (name, rss_url, bias, credibility, topic_focus)
     VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT (name) DO UPDATE SET
+      rss_url = EXCLUDED.rss_url,
+      bias = EXCLUDED.bias,
+      credibility = EXCLUDED.credibility,
+      topic_focus = EXCLUDED.topic_focus
   `);
   for (const row of sources) {
     await insert.run(row.name, row.rss, row.bias, row.credibility, row.topic_focus);

@@ -71,10 +71,7 @@ async function ensureContentReady() {
   if (!contentBootstrapPromise) {
     contentBootstrapPromise = (async () => {
       await db.ready;
-      const articleCount = await db.prepare("SELECT COUNT(*) AS c FROM articles").get();
-      if (Number(articleCount.c) === 0) {
-        await seedDatabase();
-      }
+      await seedDatabase();
     })().catch((error) => {
       contentBootstrapPromise = null;
       throw error;
