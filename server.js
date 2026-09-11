@@ -17,6 +17,10 @@ const app = express();
 const isVercel = Boolean(process.env.VERCEL || process.env.DATABASE_URL);
 const PORT = process.env.PORT || 3000;
 
+if (isVercel) {
+  app.set("trust proxy", 1);
+}
+
 // ---------------------------------------------------------------------------
 // View engine
 // ---------------------------------------------------------------------------
@@ -38,6 +42,7 @@ const sessionOptions = {
     tableName: "session",
     createTableIfMissing: true
   }),
+  proxy: isVercel,
   secret: process.env.SESSION_SECRET || "dev_secret_change_me",
   resave: false,
   saveUninitialized: false,
