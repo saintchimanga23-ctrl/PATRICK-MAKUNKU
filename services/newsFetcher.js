@@ -19,7 +19,7 @@ async function fetchAllSources() {
   const insertArticle = db.prepare(`
     INSERT OR IGNORE INTO articles
       (source_id, cluster_id, title, url, description, image_url, topic, published_at)
-    VALUES (@source_id, @cluster_id, @title, @url, @description, @image_url, @topic, @published_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertCluster = db.prepare(`
     INSERT INTO story_clusters (canonical_title, topic, keywords) VALUES (?, ?, ?)
@@ -58,16 +58,16 @@ async function fetchAllSources() {
           await updateClusterKeywords.run(JSON.stringify(merged), clusterId);
         }
 
-        await insertArticle.run({
-          source_id: source.id,
-          cluster_id: clusterId,
-          title: item.title,
-          url: item.link,
-          description: (item.contentSnippet || item.content || "").slice(0, 400),
-          image_url: (item.enclosure && item.enclosure.url) || null,
+        await insertArticle.run(
+          source.id,
+          clusterId,
+          item.title,
+          item.link,
+          (item.contentSnippet || item.content || "").slice(0, 400),
+          (item.enclosure && item.enclosure.url) || null,
           topic,
-          published_at: item.isoDate || item.pubDate || new Date().toISOString()
-        });
+          item.isoDate || item.pubDate || new Date().toISOString()
+        );
         totalNew++;
       }
       console.log(`[newsFetcher] ${source.name}: OK`);

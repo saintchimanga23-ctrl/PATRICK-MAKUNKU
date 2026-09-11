@@ -40,14 +40,17 @@ const prepare = (sql) => {
 
   return {
     get: async (...params) => {
+      await schemaReady;
       const result = await pool.query(finalSql, params);
       return result.rows[0] || undefined;
     },
     all: async (...params) => {
+      await schemaReady;
       const result = await pool.query(finalSql, params);
       return result.rows;
     },
     run: async (...params) => {
+      await schemaReady;
       const result = await pool.query(finalSql, params);
       const firstRow = result.rows[0] || null;
       return {
@@ -59,7 +62,10 @@ const prepare = (sql) => {
   };
 };
 
-const exec = async (sql) => pool.query(normalizeSql(sql));
+const exec = async (sql) => {
+  await schemaReady;
+  return pool.query(normalizeSql(sql));
+};
 
 const transaction = async (callback) => {
   const client = await pool.connect();
@@ -76,7 +82,7 @@ const transaction = async (callback) => {
   }
 };
 
-pool.query(`
+const schemaReady = pool.query(`
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
@@ -145,8 +151,11 @@ pool.query(`
   CREATE INDEX IF NOT EXISTS idx_articles_cluster ON articles(cluster_id);
   CREATE INDEX IF NOT EXISTS idx_articles_topic ON articles(topic);
   CREATE INDEX IF NOT EXISTS idx_articles_published ON articles(published_at);
-`).catch((err) => console.warn("[db] Postgres schema init warning:", err.message));
+`).catch((err) => {
+  console.warn("[db] Postgres schema init warning:", err.message);
+  throw err;
+});
 
-const db = { prepare, exec, transaction, pool, pragma: () => {}, end: () => pool.end() };
+const db = { prepare, exec, transaction, pool, ready: schemaReady, pragma: () => {}, end: () => pool.end() };
 module.exports = db;
 module.exports.pool = pool;

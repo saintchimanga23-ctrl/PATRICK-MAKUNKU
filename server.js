@@ -11,6 +11,7 @@ const { attachUser } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const newsRoutes = require("./routes/news");
 const userRoutes = require("./routes/user");
+const { seedDatabase } = require("./data/seed");
 const { fetchAllSources } = require("./services/newsFetcher");
 
 const app = express();
@@ -64,12 +65,56 @@ app.use((req, res, next) => {
   next();
 });
 
+let contentBootstrapPromise = null;
+
+async function ensureContentReady() {
+  if (!contentBootstrapPromise) {
+    contentBootstrapPromise = (async () => {
+      await db.ready;
+      const articleCount = await db.prepare("SELECT COUNT(*) AS c FROM articles").get();
+      if (Number(articleCount.c) === 0) {
+        await seedDatabase();
+      }
+    })().catch((error) => {
+      contentBootstrapPromise = null;
+      throw error;
+    });
+  }
+
+  return contentBootstrapPromise;
+}
+
+app.use(async (req, res, next) => {
+  try {
+    await ensureContentReady();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
 app.use("/", newsRoutes);
 app.use("/", authRoutes);
 app.use("/account", userRoutes);
+
+app.get("/api/refresh-news", async (req, res, next) => {
+  const expectedSecret = process.env.CRON_SECRET;
+  const providedSecret = req.query.secret || String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+
+  if (expectedSecret && providedSecret !== expectedSecret) {
+    return res.status(401).json({ ok: false, error: "unauthorized" });
+  }
+
+  try {
+    const added = await fetchAllSources();
+    res.json({ ok: true, added });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // ---------------------------------------------------------------------------
 // 404
