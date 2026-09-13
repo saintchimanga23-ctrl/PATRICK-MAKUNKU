@@ -22,8 +22,10 @@
   <% if (recommended.length) { %>
     <section class="section-block">
       <div class="section-heading">
-        <h2>Picked for your topics</h2>
-        <p>Based on: <%= preferredTopics.join(', ') %></p>
+        <h2><%= preferredTopics.length ? 'Picked for your topics' : 'Latest stories' %></h2>
+        <% if (preferredTopics.length) { %>
+          <p>Based on: <%= preferredTopics.join(', ') %></p>
+        <% } %>
       </div>
       <div class="story-grid">
         <% recommended.forEach(function(cluster){ %>
@@ -33,7 +35,7 @@
     </section>
   <% } else { %>
     <div class="empty-state">
-      <p>You haven't set topic preferences yet. <a href="/account/preferences">Choose topics</a> to get a personalized feed here.</p>
+      <p>Fresh coverage is being prepared. Please check back shortly.</p>
     </div>
   <% } %>
 

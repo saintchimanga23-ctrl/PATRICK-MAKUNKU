@@ -79,7 +79,13 @@ router.get("/", async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get("/feed", async (req, res) => {
   const topic = TOPICS.includes(req.query.topic) ? req.query.topic : null;
-  const clusters = await getClustersWithArticles({ topic, limit: 30 });
+  let clusters = await getClustersWithArticles({ topic, limit: 30 });
+  let showingFallback = false;
+
+  if (topic && !clusters.length) {
+    clusters = await getClustersWithArticles({ limit: 30 });
+    showingFallback = true;
+  }
 
   let preferences = null;
   if (req.session.user) {
@@ -93,6 +99,7 @@ router.get("/feed", async (req, res) => {
     clusters,
     topics: TOPICS,
     activeTopic: topic,
+    showingFallback,
     preferences
   });
 });

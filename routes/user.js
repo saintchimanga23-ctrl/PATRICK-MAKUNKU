@@ -6,6 +6,38 @@ const { diversityScore } = require("../services/biasEngine");
 const router = express.Router();
 const TOPICS = ["politics", "business", "technology", "health", "world", "general"];
 
+async function getDashboardStories(preferredTopics) {
+  const params = [];
+  let topicFilter = "";
+
+  if (preferredTopics.length) {
+    topicFilter = `WHERE sc.topic IN (${preferredTopics.map(() => "?").join(",")})`;
+    params.push(...preferredTopics);
+  }
+
+  const clusters = await db
+    .prepare(
+      `SELECT sc.id, sc.canonical_title, sc.topic, MAX(a.published_at) AS latest
+       FROM story_clusters sc JOIN articles a ON a.cluster_id = sc.id
+       ${topicFilter}
+       GROUP BY sc.id ORDER BY latest DESC LIMIT 8`
+    )
+    .all(...params);
+
+  const articleStmt = db.prepare(
+    `SELECT a.*, s.name AS source_name, s.bias, s.credibility
+     FROM articles a JOIN sources s ON s.id = a.source_id WHERE a.cluster_id = ?`
+  );
+
+  const stories = [];
+  for (const c of clusters) {
+    const articles = await articleStmt.all(c.id);
+    stories.push({ ...c, articles, score: diversityScore(articles) });
+  }
+
+  return stories;
+}
+
 router.use(requireAuth);
 
 router.get("/dashboard", async (req, res) => {
@@ -30,28 +62,7 @@ router.get("/dashboard", async (req, res) => {
   const preferences = await db.prepare("SELECT * FROM user_preferences WHERE user_id = ?").get(userId);
   const preferredTopics = JSON.parse((preferences && preferences.topics) || "[]");
 
-  let recommended = [];
-  if (preferredTopics.length) {
-    const placeholders = preferredTopics.map(() => "?").join(",");
-    const clusters = await db
-      .prepare(
-        `SELECT sc.id, sc.canonical_title, sc.topic, MAX(a.published_at) AS latest
-         FROM story_clusters sc JOIN articles a ON a.cluster_id = sc.id
-         WHERE sc.topic IN (${placeholders})
-         GROUP BY sc.id ORDER BY latest DESC LIMIT 8`
-      )
-      .all(...preferredTopics);
-
-    const articleStmt = db.prepare(
-      `SELECT a.*, s.name AS source_name, s.bias, s.credibility
-       FROM articles a JOIN sources s ON s.id = a.source_id WHERE a.cluster_id = ?`
-    );
-    recommended = [];
-    for (const c of clusters) {
-      const articles = await articleStmt.all(c.id);
-      recommended.push({ ...c, articles, score: diversityScore(articles) });
-    }
-  }
+  const recommended = await getDashboardStories(preferredTopics);
 
   res.render("account_dashboard", {
     title: "My Dashboard",

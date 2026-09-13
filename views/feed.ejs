@@ -40,13 +40,13 @@
 
     <section class="feed-main">
       <div class="feed-header">
-        <h1><%= activeTopic ? activeTopic.charAt(0).toUpperCase() + activeTopic.slice(1) : 'Your Feed' %></h1>
+        <h1><%= showingFallback ? 'Latest Stories' : (activeTopic ? activeTopic.charAt(0).toUpperCase() + activeTopic.slice(1) : 'Your Feed') %></h1>
         <span class="feed-count"><%= clusters.length %> stories</span>
       </div>
 
       <% if (!clusters.length) { %>
         <div class="empty-state">
-          <p>No stories in this topic yet. Run <code>npm run fetch-news</code> to pull the latest coverage, or check back soon.</p>
+          <p>Fresh coverage is being prepared. Please check back shortly.</p>
         </div>
       <% } else { %>
         <div class="story-grid">
