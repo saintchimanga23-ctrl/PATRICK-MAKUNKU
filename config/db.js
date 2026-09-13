@@ -1,3 +1,4 @@
+const path = require("path");
 const { Pool } = require("pg");
 
 const connectionString =
@@ -6,10 +7,107 @@ const connectionString =
   process.env.POSTGRES_PRISMA_URL ||
   process.env.POSTGRES_URL_NON_POOLING;
 
-if (!connectionString) {
-  throw new Error(
-    "Missing Postgres connection string. Set DATABASE_URL (or POSTGRES_URL) in Vercel before redeploying."
+const usePostgres = Boolean(connectionString);
+
+const sqliteSchema = `
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    rss_url TEXT NOT NULL,
+    bias INTEGER NOT NULL DEFAULT 0,
+    credibility INTEGER NOT NULL DEFAULT 70,
+    topic_focus TEXT DEFAULT 'general'
+  );
+  CREATE TABLE IF NOT EXISTS story_clusters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_title TEXT NOT NULL,
+    topic TEXT DEFAULT 'general',
+    keywords TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS articles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+    cluster_id INTEGER REFERENCES story_clusters(id) ON DELETE SET NULL,
+    title TEXT NOT NULL,
+    url TEXT UNIQUE NOT NULL,
+    description TEXT,
+    image_url TEXT,
+    topic TEXT DEFAULT 'general',
+    published_at TEXT,
+    fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS bookmarks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, article_id)
+  );
+  CREATE TABLE IF NOT EXISTS reading_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    viewed_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    topics TEXT DEFAULT '[]',
+    balance_mode INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS session (
+    sid VARCHAR(255) PRIMARY KEY,
+    sess JSON NOT NULL,
+    expire TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_articles_cluster ON articles(cluster_id);
+  CREATE INDEX IF NOT EXISTS idx_articles_topic ON articles(topic);
+  CREATE INDEX IF NOT EXISTS idx_articles_published ON articles(published_at);
+`;
+
+function buildSqlite() {
+  const sqlite3 = require("sqlite3").verbose();
+  const dbPath = process.env.DB_PATH || path.join(__dirname, "..", "newshub.sqlite3");
+  const sqlite = new sqlite3.Database(dbPath);
+
+  const ready = new Promise((resolve, reject) => {
+    sqlite.serialize(() => {
+      sqlite.run("PRAGMA foreign_keys = ON");
+      sqlite.exec(sqliteSchema, (error) => (error ? reject(error) : resolve()));
+    });
+  });
+
+  const prepare = (sql) => ({
+    get: (...params) => new Promise((resolve, reject) => {
+      ready.then(() => sqlite.get(sql, params, (error, row) => error ? reject(error) : resolve(row))).catch(reject);
+    }),
+    all: (...params) => new Promise((resolve, reject) => {
+      ready.then(() => sqlite.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows))).catch(reject);
+    }),
+    run: (...params) => new Promise((resolve, reject) => {
+      ready.then(() => sqlite.run(sql, params, function (error) {
+        if (error) return reject(error);
+        resolve({ lastInsertRowid: this.lastID, changes: this.changes, rowCount: this.changes });
+      })).catch(reject);
+    })
+  });
+
+  return {
+    prepare,
+    exec: (sql) => new Promise((resolve, reject) => {
+      ready.then(() => sqlite.exec(sql, (error) => error ? reject(error) : resolve())).catch(reject);
+    }),
+    ready,
+    pragma: (sql) => sqlite.run(`PRAGMA ${sql}`),
+    end: () => new Promise((resolve, reject) => sqlite.close((error) => error ? reject(error) : resolve()))
+  };
 }
 
 function normalizeSql(sql) {
@@ -22,10 +120,10 @@ function normalizeSql(sql) {
   return normalized;
 }
 
-const pool = new Pool({
+const pool = usePostgres ? new Pool({
   connectionString,
   ssl: process.env.VERCEL ? { rejectUnauthorized: false } : undefined
-});
+}) : null;
 
 const prepare = (sql) => {
   const text = normalizeSql(sql);
@@ -82,7 +180,7 @@ const transaction = async (callback) => {
   }
 };
 
-const schemaReady = pool.query(`
+const schemaReady = usePostgres ? pool.query(`
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
@@ -154,8 +252,10 @@ const schemaReady = pool.query(`
 `).catch((err) => {
   console.warn("[db] Postgres schema init warning:", err.message);
   throw err;
-});
+}) : Promise.resolve();
 
-const db = { prepare, exec, transaction, pool, ready: schemaReady, pragma: () => {}, end: () => pool.end() };
+const db = usePostgres
+  ? { prepare, exec, transaction, pool, ready: schemaReady, pragma: () => {}, end: () => pool.end() }
+  : buildSqlite();
 module.exports = db;
-module.exports.pool = pool;
+if (usePostgres) module.exports.pool = pool;

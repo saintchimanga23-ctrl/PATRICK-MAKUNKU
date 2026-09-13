@@ -38,11 +38,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const sessionOptions = {
-  store: new pgSession({
-    pool: db.pool,
-    tableName: "session",
-    createTableIfMissing: true
-  }),
   proxy: isVercel,
   secret: process.env.SESSION_SECRET || "dev_secret_change_me",
   resave: false,
@@ -54,6 +49,14 @@ const sessionOptions = {
     sameSite: "lax"
   }
 };
+
+if (isVercel) {
+  sessionOptions.store = new pgSession({
+    pool: db.pool,
+    tableName: "session",
+    createTableIfMissing: true
+  });
+}
 
 app.use(session(sessionOptions));
 
